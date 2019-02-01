@@ -14,7 +14,7 @@ import tensorflow as tf
 
 from data_util import GeneratorEnqueuer
 
-tf.app.flags.DEFINE_string('training_data_path', '/data/ocr/icdar2015/',
+tf.app.flags.DEFINE_string('training_data_path', '/home/raulgomez/other_datasets/ICDAR_2013_FocusedSceneText/',
                            'training dataset to use')
 tf.app.flags.DEFINE_integer('max_image_large_side', 1280,
                             'max image size of training')
@@ -37,7 +37,19 @@ def get_images():
     files = []
     for ext in ['jpg', 'png', 'jpeg', 'JPG']:
         files.extend(glob.glob(
-            os.path.join(FLAGS.training_data_path, '*.{}'.format(ext))))
+            os.path.join(FLAGS.training_data_path, 'train/img/*.{}'.format(ext))))
+
+    num_original_images = len(files)
+    print("Loaded " + str(num_original_images) + " original images.")
+    augmented = False
+    if augmented:
+        print("Augmenting dataset.")
+        for ext in ['jpg', 'png', 'jpeg', 'JPG']:
+            files.extend(glob.glob(
+                os.path.join(FLAGS.training_data_path, 'train/img_styled_masked/*.{}'.format(ext))))
+
+    print("Loaded " + str(len(files) - num_original_images) + " augmented images.")
+
     return files
 
 
@@ -602,6 +614,33 @@ def generator(input_size=512, batch_size=32,
                 # print im_fn
                 h, w, _ = im.shape
                 txt_fn = im_fn.replace(os.path.basename(im_fn).split('.')[1], 'txt')
+
+                if "2015" in FLAGS.training_data_path:
+
+                    if '/img_styled_masked/' not in txt_fn:
+                        txt_fn = txt_fn.replace('/img/','/gt/')
+                        txt_fn = txt_fn.replace('img_', 'gt_img_')
+
+                    elif '/img_styled_masked/' in txt_fn:
+                        txt_fn = txt_fn.replace('/img_styled_masked/','/gt/')
+                        txt_fn = txt_fn.replace('img_','gt_img_')
+                        remove = txt_fn.split('_')[-1] + '_'
+                        txt_fn = txt_fn.replace(remove,'') + '.txt'
+
+                elif "2013" in FLAGS.training_data_path:
+
+                    if '/img_styled_masked/' not in txt_fn:
+
+                        txt_fn = txt_fn.replace('/img/','/gt/gt_')
+
+                    elif '/img_styled_masked/' in txt_fn:
+                        txt_fn = txt_fn.replace('/img_styled_masked/','/gt/gt_')
+                        remove = '_' + txt_fn.split('_')[-1]
+                        txt_fn = txt_fn.replace(remove,'') + '.txt'
+
+                else:
+                    print("Couldn't identify dataset to load GT")
+
                 if not os.path.exists(txt_fn):
                     print('text file {} does not exists'.format(txt_fn))
                     continue

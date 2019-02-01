@@ -2,26 +2,10 @@ import time
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib import slim
-
-tf.app.flags.DEFINE_integer('input_size', 512, '')
-tf.app.flags.DEFINE_integer('batch_size_per_gpu', 14, '')
-tf.app.flags.DEFINE_integer('num_readers', 16, '')
-tf.app.flags.DEFINE_float('learning_rate', 0.0001, '')
-tf.app.flags.DEFINE_integer('max_steps', 100000, '')
-tf.app.flags.DEFINE_float('moving_average_decay', 0.997, '')
-tf.app.flags.DEFINE_string('gpu_list', '1', '')
-tf.app.flags.DEFINE_string('checkpoint_path', '/tmp/east_resnet_v1_50_rbox/', '')
-tf.app.flags.DEFINE_boolean('restore', False, 'whether to resotre from checkpoint')
-tf.app.flags.DEFINE_integer('save_checkpoint_steps', 1000, '')
-tf.app.flags.DEFINE_integer('save_summary_steps', 100, '')
-tf.app.flags.DEFINE_string('pretrained_model_path', None, '')
+import os
 
 import model
 import icdar
-
-FLAGS = tf.app.flags.FLAGS
-
-gpus = list(range(len(FLAGS.gpu_list.split(','))))
 
 
 def tower_loss(images, score_maps, geo_maps, training_masks, reuse_variables=None):
@@ -67,25 +51,49 @@ def average_gradients(tower_grads):
 
 
 def main(argv=None):
-    import os
-    os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu_list
-    if not tf.gfile.Exists(FLAGS.checkpoint_path):
-        tf.gfile.MkDir(FLAGS.checkpoint_path)
+
+    input_size = 512
+    batch_size_per_gpu = 14 #14
+    num_readers = 4 #16
+    learning_rate = 0.0001
+    max_steps = 100000
+    moving_average_decay = 0.997
+    geometry = 'RBOX'
+    gpu_list = '0'
+    checkpoints = '/home/raulgomez/other_datasets/ICDAR_2013_FocusedSceneText/snapshots/'
+    model_id = '2013'
+
+    restore = False  # 'whether to resotre from checkpoint')
+    save_checkpoint_steps = 1000
+    save_summary_steps = 100
+    pretrained_model_path = '/home/raulgomez/other_datasets/ICDAR_2013_FocusedSceneText/pretrained/resnet_v1_50.ckpt'
+
+    gpus = list(range(len(gpu_list.split(','))))
+
+
+    if not os.path.isdir(checkpoints):
+        print("SS")
+        os.mkdir(checkpoints)
+    checkpoint_path = checkpoints + model_id
+
+    os.environ['CUDA_VISIBLE_DEVICES'] = gpu_list
+    if not tf.gfile.Exists(checkpoint_path):
+        tf.gfile.MkDir(checkpoint_path)
     else:
-        if not FLAGS.restore:
-            tf.gfile.DeleteRecursively(FLAGS.checkpoint_path)
-            tf.gfile.MkDir(FLAGS.checkpoint_path)
+        if not restore:
+            tf.gfile.DeleteRecursively(checkpoint_path)
+            tf.gfile.MkDir(checkpoint_path)
 
     input_images = tf.placeholder(tf.float32, shape=[None, None, None, 3], name='input_images')
     input_score_maps = tf.placeholder(tf.float32, shape=[None, None, None, 1], name='input_score_maps')
-    if FLAGS.geometry == 'RBOX':
+    if geometry == 'RBOX':
         input_geo_maps = tf.placeholder(tf.float32, shape=[None, None, None, 5], name='input_geo_maps')
     else:
         input_geo_maps = tf.placeholder(tf.float32, shape=[None, None, None, 8], name='input_geo_maps')
     input_training_masks = tf.placeholder(tf.float32, shape=[None, None, None, 1], name='input_training_masks')
 
     global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
-    learning_rate = tf.train.exponential_decay(FLAGS.learning_rate, global_step, decay_steps=10000, decay_rate=0.94, staircase=True)
+    learning_rate = tf.train.exponential_decay(learning_rate, global_step, decay_steps=10000, decay_rate=0.94, staircase=True)
     # add summary
     tf.summary.scalar('learning_rate', learning_rate)
     opt = tf.train.AdamOptimizer(learning_rate)
@@ -120,36 +128,36 @@ def main(argv=None):
     summary_op = tf.summary.merge_all()
     # save moving average
     variable_averages = tf.train.ExponentialMovingAverage(
-        FLAGS.moving_average_decay, global_step)
+        moving_average_decay, global_step)
     variables_averages_op = variable_averages.apply(tf.trainable_variables())
     # batch norm updates
     with tf.control_dependencies([variables_averages_op, apply_gradient_op, batch_norm_updates_op]):
         train_op = tf.no_op(name='train_op')
 
     saver = tf.train.Saver(tf.global_variables())
-    summary_writer = tf.summary.FileWriter(FLAGS.checkpoint_path, tf.get_default_graph())
+    summary_writer = tf.summary.FileWriter(checkpoint_path, tf.get_default_graph())
 
     init = tf.global_variables_initializer()
 
-    if FLAGS.pretrained_model_path is not None:
-        variable_restore_op = slim.assign_from_checkpoint_fn(FLAGS.pretrained_model_path, slim.get_trainable_variables(),
+    if pretrained_model_path is not None:
+        variable_restore_op = slim.assign_from_checkpoint_fn(pretrained_model_path, slim.get_trainable_variables(),
                                                              ignore_missing_vars=True)
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
-        if FLAGS.restore:
+        if restore:
             print('continue training from previous checkpoint')
-            ckpt = tf.train.latest_checkpoint(FLAGS.checkpoint_path)
+            ckpt = tf.train.latest_checkpoint(checkpoint_path)
             saver.restore(sess, ckpt)
         else:
             sess.run(init)
-            if FLAGS.pretrained_model_path is not None:
+            if pretrained_model_path is not None:
                 variable_restore_op(sess)
 
-        data_generator = icdar.get_batch(num_workers=FLAGS.num_readers,
-                                         input_size=FLAGS.input_size,
-                                         batch_size=FLAGS.batch_size_per_gpu * len(gpus))
+        data_generator = icdar.get_batch(num_workers=num_readers,
+                                         input_size=input_size,
+                                         batch_size=batch_size_per_gpu * len(gpus))
 
         start = time.time()
-        for step in range(FLAGS.max_steps):
+        for step in range(max_steps):
             data = next(data_generator)
             ml, tl, _ = sess.run([model_loss, total_loss, train_op], feed_dict={input_images: data[0],
                                                                                 input_score_maps: data[2],
@@ -161,15 +169,15 @@ def main(argv=None):
 
             if step % 10 == 0:
                 avg_time_per_step = (time.time() - start)/10
-                avg_examples_per_second = (10 * FLAGS.batch_size_per_gpu * len(gpus))/(time.time() - start)
+                avg_examples_per_second = (10 * batch_size_per_gpu * len(gpus))/(time.time() - start)
                 start = time.time()
                 print('Step {:06d}, model loss {:.4f}, total loss {:.4f}, {:.2f} seconds/step, {:.2f} examples/second'.format(
                     step, ml, tl, avg_time_per_step, avg_examples_per_second))
 
-            if step % FLAGS.save_checkpoint_steps == 0:
-                saver.save(sess, FLAGS.checkpoint_path + 'model.ckpt', global_step=global_step)
+            if step % save_checkpoint_steps == 0:
+                saver.save(sess, checkpoint_path + 'model.ckpt', global_step=global_step)
 
-            if step % FLAGS.save_summary_steps == 0:
+            if step % save_summary_steps == 0:
                 _, tl, summary_str = sess.run([train_op, total_loss, summary_op], feed_dict={input_images: data[0],
                                                                                              input_score_maps: data[2],
                                                                                              input_geo_maps: data[3],
