@@ -115,11 +115,11 @@ def sort_poly(p):
 
 def main(argv=None):
     
-    test_data_path = '/home/raulgomez/other_datasets/ICDAR_2015_IndidentalSceneText/'
+    test_data_path = '/home/raulgomez/other_datasets/ICDAR_2013_FocusedSceneText/'
     gpu_list = '0'
-    checkpoint_path = '/home/raulgomez/other_datasets/ICDAR_2015_IndidentalSceneText/snapshots/'
-    output_dir = '/home/raulgomez/other_datasets/ICDAR_2015_IndidentalSceneText/evaluation/'
-    no_write_images = False
+    checkpoint_path = '/home/raulgomez/other_datasets/ICDAR_2013_FocusedSceneText/snapshots/2013_augmented_32/'
+    output_dir = '/home/raulgomez/other_datasets/ICDAR_2013_FocusedSceneText/evaluation/2013_augmented_32_5epoch/'
+    no_write_images = True
     
     import os
     os.environ['CUDA_VISIBLE_DEVICES'] = gpu_list
@@ -171,10 +171,8 @@ def main(argv=None):
 
                 # save to file
                 if boxes is not None:
-                    res_file = os.path.join(
-                        output_dir,
-                        '{}.txt'.format(
-                            os.path.basename(im_fn).split('.')[0]))
+                    res_file = output_dir + 'res_' + im_fn.split('/')[-1].split('.')[0] + '.txt'
+                    print(res_file)
 
                     with open(res_file, 'w') as f:
                         for box in boxes:
@@ -182,9 +180,21 @@ def main(argv=None):
                             box = sort_poly(box.astype(np.int32))
                             if np.linalg.norm(box[0] - box[1]) < 5 or np.linalg.norm(box[3]-box[0]) < 5:
                                 continue
-                            f.write('{},{},{},{},{},{},{},{}\r\n'.format(
-                                box[0, 0], box[0, 1], box[1, 0], box[1, 1], box[2, 0], box[2, 1], box[3, 0], box[3, 1],
-                            ))
+                            if '2015' in test_data_path:
+                                f.write('{},{},{},{},{},{},{},{}\r\n'.format(
+                                    box[0, 0], box[0, 1], box[1, 0], box[1, 1], box[2, 0], box[2, 1], box[3, 0], box[3, 1],
+                                ))
+                            elif '2013' in test_data_path:
+                                xmin = min(box[0, 0], box[2, 0])
+                                ymin = min(box[0, 1], box[1, 1])
+                                xmax = max(box[1, 0], box[3, 0])
+                                ymax = max(box[2, 1], box[3, 1])
+                                f.write('{},{},{},{}\r\n'.format(
+                                    xmin, ymin, xmax, ymax,
+                                ))
+                            else:
+                                print("Dataset to format output not recognized.")
+
                             cv2.polylines(im[:, :, ::-1], [box.astype(np.int32).reshape((-1, 1, 2))], True, color=(255, 255, 0), thickness=1)
                 if not no_write_images:
                     img_path = os.path.join(output_dir, os.path.basename(im_fn))

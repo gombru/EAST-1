@@ -14,7 +14,7 @@ import tensorflow as tf
 
 from data_util import GeneratorEnqueuer
 
-tf.app.flags.DEFINE_string('training_data_path', '/home/raulgomez/other_datasets/ICDAR_2013_FocusedSceneText/',
+tf.app.flags.DEFINE_string('training_data_path', '/home/raulgomez/datasets/COCO-Text/',
                            'training dataset to use')
 tf.app.flags.DEFINE_integer('max_image_large_side', 1280,
                             'max image size of training')
@@ -36,8 +36,14 @@ FLAGS = tf.app.flags.FLAGS
 def get_images():
     files = []
     for ext in ['jpg', 'png', 'jpeg', 'JPG']:
-        files.extend(glob.glob(
-            os.path.join(FLAGS.training_data_path, 'train/img/*.{}'.format(ext))))
+        if "ICDAR" in FLAGS.training_data_path:
+            files.extend(glob.glob(
+                os.path.join(FLAGS.training_data_path, 'train/img/*.{}'.format(ext))))
+        elif "COCO" in FLAGS.training_data_path:
+            files.extend(glob.glob(
+                os.path.join(FLAGS.training_data_path, 'img/train_legible/*.{}'.format(ext))))
+        else:
+            print("Dataset not identified when loading image list")
 
     num_original_images = len(files)
     print("Loaded " + str(num_original_images) + " original images.")
@@ -45,8 +51,14 @@ def get_images():
     if augmented:
         print("Augmenting dataset.")
         for ext in ['jpg', 'png', 'jpeg', 'JPG']:
-            files.extend(glob.glob(
-                os.path.join(FLAGS.training_data_path, 'train/img_styled_masked/*.{}'.format(ext))))
+            if "ICDAR" in FLAGS.training_data_path:
+                files.extend(glob.glob(
+                    os.path.join(FLAGS.training_data_path, 'train/img_styled_masked/*.{}'.format(ext))))
+            elif "COCO" in FLAGS.training_data_path:
+                files.extend(glob.glob(
+                    os.path.join(FLAGS.training_data_path, 'img/train_styled_masked/*.{}'.format(ext))))
+        else:
+            print("Dataset not identified when loading augmented image list")
 
     print("Loaded " + str(len(files) - num_original_images) + " augmented images.")
 
@@ -624,7 +636,7 @@ def generator(input_size=512, batch_size=32,
                     elif '/img_styled_masked/' in txt_fn:
                         txt_fn = txt_fn.replace('/img_styled_masked/','/gt/')
                         txt_fn = txt_fn.replace('img_','gt_img_')
-                        remove = txt_fn.split('_')[-1] + '_'
+                        remove = '_' + txt_fn.split('_')[-1]
                         txt_fn = txt_fn.replace(remove,'') + '.txt'
 
                 elif "2013" in FLAGS.training_data_path:
@@ -635,6 +647,17 @@ def generator(input_size=512, batch_size=32,
 
                     elif '/img_styled_masked/' in txt_fn:
                         txt_fn = txt_fn.replace('/img_styled_masked/','/gt/gt_')
+                        remove = '_' + txt_fn.split('_')[-1]
+                        txt_fn = txt_fn.replace(remove,'') + '.txt'
+
+                elif "COCO" in FLAGS.training_data_path:
+
+                    if 'styled_masked' not in txt_fn:
+
+                        txt_fn = txt_fn.replace('/img/train_legible/','/gt/gt_ICDAR_format_legible/')
+
+                    elif 'styled_masked' in txt_fn:
+                        txt_fn = txt_fn.replace('/img/train_styled_masked/','/gt/gt_ICDAR_format_legible/')
                         remove = '_' + txt_fn.split('_')[-1]
                         txt_fn = txt_fn.replace(remove,'') + '.txt'
 

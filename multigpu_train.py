@@ -56,12 +56,12 @@ def main(argv=None):
     batch_size_per_gpu = 14 #14
     num_readers = 4 #16
     learning_rate = 0.0001
-    max_steps = 100000
+    max_steps = 100000*32
     moving_average_decay = 0.997
     geometry = 'RBOX'
     gpu_list = '0'
-    checkpoints = '/home/raulgomez/other_datasets/ICDAR_2013_FocusedSceneText/snapshots/'
-    model_id = '2013'
+    checkpoints = '/home/raulgomez/datasets/COCO-Text/snapshots/'
+    model_id = 'COCO-Text_legible/'
 
     restore = False  # 'whether to resotre from checkpoint')
     save_checkpoint_steps = 1000
@@ -74,15 +74,16 @@ def main(argv=None):
     if not os.path.isdir(checkpoints):
         print("SS")
         os.mkdir(checkpoints)
-    checkpoint_path = checkpoints + model_id
+
+    checkpoints = checkpoints + model_id
 
     os.environ['CUDA_VISIBLE_DEVICES'] = gpu_list
-    if not tf.gfile.Exists(checkpoint_path):
-        tf.gfile.MkDir(checkpoint_path)
+    if not tf.gfile.Exists(checkpoints):
+        tf.gfile.MkDir(checkpoints)
     else:
         if not restore:
-            tf.gfile.DeleteRecursively(checkpoint_path)
-            tf.gfile.MkDir(checkpoint_path)
+            tf.gfile.DeleteRecursively(checkpoints)
+            tf.gfile.MkDir(checkpoints)
 
     input_images = tf.placeholder(tf.float32, shape=[None, None, None, 3], name='input_images')
     input_score_maps = tf.placeholder(tf.float32, shape=[None, None, None, 1], name='input_score_maps')
@@ -135,7 +136,7 @@ def main(argv=None):
         train_op = tf.no_op(name='train_op')
 
     saver = tf.train.Saver(tf.global_variables())
-    summary_writer = tf.summary.FileWriter(checkpoint_path, tf.get_default_graph())
+    summary_writer = tf.summary.FileWriter(checkpoints, tf.get_default_graph())
 
     init = tf.global_variables_initializer()
 
@@ -145,7 +146,7 @@ def main(argv=None):
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
         if restore:
             print('continue training from previous checkpoint')
-            ckpt = tf.train.latest_checkpoint(checkpoint_path)
+            ckpt = tf.train.latest_checkpoint(checkpoints)
             saver.restore(sess, ckpt)
         else:
             sess.run(init)
@@ -175,7 +176,7 @@ def main(argv=None):
                     step, ml, tl, avg_time_per_step, avg_examples_per_second))
 
             if step % save_checkpoint_steps == 0:
-                saver.save(sess, checkpoint_path + 'model.ckpt', global_step=global_step)
+                saver.save(sess, checkpoints + 'model.ckpt', global_step=global_step)
 
             if step % save_summary_steps == 0:
                 _, tl, summary_str = sess.run([train_op, total_loss, summary_op], feed_dict={input_images: data[0],
