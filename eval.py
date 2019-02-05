@@ -41,7 +41,7 @@ def resize_image(im, max_side_len=2400):
     resize_w = w
     resize_h = h
 
-    # limit the max side
+    # limit the max side.
     if max(resize_h, resize_w) > max_side_len:
         ratio = float(max_side_len) / resize_h if resize_h > resize_w else float(max_side_len) / resize_w
     else:
