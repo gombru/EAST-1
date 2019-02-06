@@ -115,10 +115,10 @@ def sort_poly(p):
 
 def main(argv=None):
     
-    test_data_path = '/home/raulgomez/other_datasets/ICDAR_2013_FocusedSceneText/'
+    test_data_path = '/home/raulgomez/other_datasets/ICDAR_2015_IndidentalSceneText/'
     gpu_list = '0'
-    checkpoint_path = '/home/raulgomez/other_datasets/ICDAR_2013_FocusedSceneText/snapshots/2013_augmented_32/'
-    output_dir = '/home/raulgomez/other_datasets/ICDAR_2013_FocusedSceneText/evaluation/2013_augmented_32_5epoch/'
+    checkpoint_path = '/home/raulgomez/other_datasets/ICDAR_2015_IndidentalSceneText/snapshots/2015_augmented_32/'
+    output_dir = '/home/raulgomez/other_datasets/ICDAR_2015_IndidentalSceneText/evaluation/2015_augmented_32_79epoch/'
     no_write_images = True
     
     import os

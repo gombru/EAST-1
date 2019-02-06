@@ -60,8 +60,8 @@ def main(argv=None):
     moving_average_decay = 0.997
     geometry = 'RBOX'
     gpu_list = '0'
-    checkpoints = '/home/raulgomez/datasets/COCO-Text/snapshots/'
-    model_id = 'COCO-Text_legible/'
+    checkpoints = '/home/raulgomez/other_datasets/ICDAR_2015_IndidentalSceneText/snapshots/'
+    model_id = '2015_augmented_4randomfixed/'
 
     restore = False  # 'whether to resotre from checkpoint')
     save_checkpoint_steps = 1000

@@ -14,7 +14,7 @@ import tensorflow as tf
 
 from data_util import GeneratorEnqueuer
 
-tf.app.flags.DEFINE_string('training_data_path', '/home/raulgomez/datasets/COCO-Text/',
+tf.app.flags.DEFINE_string('training_data_path', '/home/raulgomez/other_datasets/ICDAR_2015_IndidentalSceneText/',
                            'training dataset to use')
 tf.app.flags.DEFINE_integer('max_image_large_side', 1280,
                             'max image size of training')
@@ -47,13 +47,13 @@ def get_images():
 
     num_original_images = len(files)
     print("Loaded " + str(num_original_images) + " original images.")
-    augmented = False
+    augmented = True
     if augmented:
         print("Augmenting dataset.")
         for ext in ['jpg', 'png', 'jpeg', 'JPG']:
             if "ICDAR" in FLAGS.training_data_path:
                 files.extend(glob.glob(
-                    os.path.join(FLAGS.training_data_path, 'train/img_styled_masked/*.{}'.format(ext))))
+                    os.path.join(FLAGS.training_data_path, 'train/img_4styles_masked/*.{}'.format(ext))))
             elif "COCO" in FLAGS.training_data_path:
                 files.extend(glob.glob(
                     os.path.join(FLAGS.training_data_path, 'img/train_styled_masked/*.{}'.format(ext))))
@@ -629,12 +629,18 @@ def generator(input_size=512, batch_size=32,
 
                 if "2015" in FLAGS.training_data_path:
 
-                    if '/img_styled_masked/' not in txt_fn:
+                    if '/img_styled_masked/' not in txt_fn and '/img_4styles_masked/' not in txt_fn:
                         txt_fn = txt_fn.replace('/img/','/gt/')
                         txt_fn = txt_fn.replace('img_', 'gt_img_')
 
                     elif '/img_styled_masked/' in txt_fn:
                         txt_fn = txt_fn.replace('/img_styled_masked/','/gt/')
+                        txt_fn = txt_fn.replace('img_','gt_img_')
+                        remove = '_' + txt_fn.split('_')[-1]
+                        txt_fn = txt_fn.replace(remove,'') + '.txt'
+
+                    elif '/img_4styles_masked/' in txt_fn:
+                        txt_fn = txt_fn.replace('/img_4styles_masked/','/gt/')
                         txt_fn = txt_fn.replace('img_','gt_img_')
                         remove = '_' + txt_fn.split('_')[-1]
                         txt_fn = txt_fn.replace(remove,'') + '.txt'
